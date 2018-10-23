@@ -1,19 +1,23 @@
 <template>
-    <div><label><input type="checkbox" :checked="!anyRemaining" @change="allChecked"> Check All</label></div>
+    <div>
+        <button :class="{ active: filter === 'all' }" @click="changeFilter('all')">All</button>
+        <button :class="{ active: filter === 'active' }" @click="changeFilter('active')">Active</button>
+        <button :class="{ active: filter === 'completed' }" @click="changeFilter('completed')">Completed</button>
+    </div>
 </template>
 
 <script>
     export default {
         name: 'todo-filtered',
-        props: {
-            anyRemaining: {
-                type: Boolean,
-                required: true,
+        data() {
+            return {
+                'filter': 'all',
             }
         },
         methods: {
-            allChecked() {
-                eventBus.$emit('checkAllChanged', this.anyRemaining)
+            changeFilter(filter) {
+                this.filter = filter
+                eventBus.$emit('filterChanged', filter)
             }
         }
     }
