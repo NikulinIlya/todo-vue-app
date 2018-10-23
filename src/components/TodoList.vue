@@ -13,9 +13,9 @@
 
         <div class="extra-container">
             <div>
-                <button :class="{ active: filter == 'all' }" @click="filter = 'all'">All</button>
-                <button :class="{ active: filter == 'active' }" @click="filter = 'active'">Active</button>
-                <button :class="{ active: filter == 'completed' }" @click="filter = 'completed'">Completed</button>
+                <button :class="{ active: filter === 'all' }" @click="filter = 'all'">All</button>
+                <button :class="{ active: filter === 'active' }" @click="filter = 'active'">Active</button>
+                <button :class="{ active: filter === 'completed' }" @click="filter = 'completed'">Completed</button>
             </div>
 
             <div>
@@ -71,14 +71,14 @@
                 return this.todos.filter(todo => !todo.completed).length
             },
             anyRemaining() {
-                return this.remaining != 0
+                return this.remaining !== 0
             },
             todosFiltered() {
-                if (this.filter == 'all') {
+                if (this.filter === 'all') {
                     return this.todos
-                } else if (this.filter == 'active') {
+                } else if (this.filter === 'active') {
                     return this.todos.filter(todo => !todo.completed)
-                } else if (this.filter == 'completed') {
+                } else if (this.filter === 'completed') {
                     return this.todos.filter(todo => todo.completed)
                 }
 
@@ -90,7 +90,7 @@
         },
         methods: {
             addTodo() {
-                if (this.newTodo.trim().length == 0) {
+                if (this.newTodo.trim().length === 0) {
                     return
                 }
 
@@ -104,7 +104,7 @@
                 this.idForTodo++
             },
             removeTodo(id) {
-                const index = this.todos.findIndex((item) => item.id == id)
+                const index = this.todos.findIndex((item) => item.id === id)
                 this.todos.splice(index, 1)
             },
             checkAllTodos() {
@@ -114,7 +114,7 @@
                 this.todos = this.todos.filter(todo => !todo.completed)
             },
             finishedEdit(data) {
-                const index = this.todos.findIndex((item) => item.id == data.id)
+                const index = this.todos.findIndex((item) => item.id === data.id)
                 this.todos.splice(index, 1, data)
             }
         }
