@@ -1,16 +1,20 @@
 import Vue from 'vue'
 import Vuex from 'vuex'
-import db from '../firebase'
+import axios from 'axios'
 
 Vue.use(Vuex)
+axios.defaults.baseURL = 'http://todo-laravel.test/api'
 
 export const store = new Vuex.Store({
     state: {
-        loading: true,
+        token: localStorage.getItem('access_token') || null,
         filter: 'all',
-        todos: []
+        todos: [],
     },
     getters: {
+        loggedIn(state) {
+            return state.token !== null
+        },
         remaining(state) {
             return state.todos.filter(todo => !todo.completed).length
         },
@@ -37,7 +41,6 @@ export const store = new Vuex.Store({
                 id: todo.id,
                 title: todo.title,
                 completed: false,
-                timestamp: new Date(),
                 editing: false,
             })
         },
@@ -52,10 +55,7 @@ export const store = new Vuex.Store({
         },
         deleteTodo(state, id) {
             const index = state.todos.findIndex(item => item.id === id)
-
-            if (index >= 0) {
-                state.todos.splice(index, 1)
-            }
+            state.todos.splice(index, 1)
         },
         checkAll(state, checked) {
             state.todos.forEach(todo => (todo.completed = checked))
@@ -68,113 +68,155 @@ export const store = new Vuex.Store({
         },
         retrieveTodos(state, todos) {
             state.todos = todos
-        }
+        },
+        retrieveToken(state, token) {
+            state.token = token
+        },
+        destroyToken(state) {
+            state.token = null
+        },
+        clearTodos(state) {
+            state.todos = []
+        },
     },
     actions: {
-        initRealtimeListeners(context) {
-            db.collection('todos').onSnapshot(snapshot => {
-                snapshot.docChanges.forEach(change => {
-                    if (change.type === 'added') {
-                        const source = change.doc.metadata.hasPendingWrites ? 'Local' : 'Server'
-
-                        if (source === 'Server') {
-                            context.commit('addTodo', {
-                                id: change.doc.id,
-                                title: change.doc.data().title,
-                                completed: false,
-                            })
-                        }
-                    }
-                    if (change.type === 'modified') {
-                        context.commit('updateTodo', {
-                            id: change.doc.id,
-                            title: change.doc.data().title,
-                            completed: change.doc.data().completed,
-                        })
-                    }
-                    if (change.type === 'removed') {
-                        context.commit('deleteTodo', change.doc.id)
-                    }
+        clearTodos(context) {
+            context.commit('clearTodos')
+        },
+        register(context, data) {
+            return new Promise((resolve, reject) => {
+                axios.post('/register', {
+                    name: data.name,
+                    email: data.email,
+                    password: data.password,
                 })
+                    .then(response => {
+                        resolve(response)
+                    })
+                    .catch(error => {
+                        reject(error)
+                    })
+            })
+        },
+        destroyToken(context) {
+            axios.defaults.headers.common['Authorization'] = 'Bearer ' + context.state.token
+
+            if (context.getters.loggedIn) {
+                return new Promise((resolve, reject) => {
+                    axios.post('/logout')
+                        .then(response => {
+                            localStorage.removeItem('access_token')
+                            context.commit('destroyToken')
+                            resolve(response)
+                            // console.log(response);
+                            // context.commit('addTodo', response.data)
+                        })
+                        .catch(error => {
+                            localStorage.removeItem('access_token')
+                            context.commit('destroyToken')
+                            reject(error)
+                        })
+                })
+            }
+        },
+        retrieveToken(context, credentials) {
+
+            return new Promise((resolve, reject) => {
+                axios.post('/login', {
+                    username: credentials.username,
+                    password: credentials.password,
+                })
+                    .then(response => {
+                        const token = response.data.access_token
+
+                        localStorage.setItem('access_token', token)
+                        context.commit('retrieveToken', token)
+                        resolve(response)
+                        // console.log(response);
+                        // context.commit('addTodo', response.data)
+                    })
+                    .catch(error => {
+                        console.log(error)
+                        reject(error)
+                    })
             })
         },
         retrieveTodos(context) {
-            context.state.loading = true
-            db.collection('todos').get().then(querySnapshot => {
-                let tempTodos = []
-                querySnapshot.forEach(doc => {
-                    console.log(doc.data())
-                    const data = {
-                        id: doc.id,
-                        title: doc.data().title,
-                        completed: doc.data().completed,
-                        timestamp: doc.data().timestamp
-                    }
-                    tempTodos.push(data)
-                })
+            axios.defaults.headers.common['Authorization'] = 'Bearer ' + context.state.token
 
-                context.state.loading = false
-                const tempTodosSorted = tempTodos.sort((a, b) => {
-                    return a.timestamp.seconds - b.timestamp.seconds
+            axios.get('/todos')
+                .then(response => {
+                    context.commit('retrieveTodos', response.data)
                 })
-
-                context.commit('retrieveTodos', tempTodosSorted)
-            })
+                .catch(error => {
+                    console.log(error)
+                })
         },
         addTodo(context, todo) {
-            db.collection('todos').add({
+            axios.post('/todos', {
                 title: todo.title,
                 completed: false,
-                timestamp: new Date(),
             })
-                .then(docRef => {
-                    context.commit('addTodo', {
-                        id: docRef.id,
-                        title: todo.title,
-                        completed: false,
-                    })
+                .then(response => {
+                    context.commit('addTodo', response.data)
+                })
+                .catch(error => {
+                    console.log(error)
                 })
         },
         updateTodo(context, todo) {
-            db.collection('todos').doc(todo.id).set({
-                // id: todo.id,
+            axios.patch('/todos/' + todo.id, {
                 title: todo.title,
                 completed: todo.completed,
-                // timestamp: new Date(),
-            }), { merge: true }
-            .then(() => {
-                context.commit('updateTodo', todo)
             })
+                .then(response => {
+                    context.commit('updateTodo', response.data)
+                })
+                .catch(error => {
+                    console.log(error)
+                })
         },
         deleteTodo(context, id) {
-            db.collection('todos').doc(id).delete().then(() => {
-                context.commit('deleteTodo', id)
-            })
+            axios.delete('/todos/' + id)
+                .then(response => {
+                    context.commit('deleteTodo', id)
+                })
+                .catch(error => {
+                    console.log(error)
+                })
         },
         checkAll(context, checked) {
-            db.collection('todos').get().then(querySnapshot => {
-                querySnapshot.forEach(doc => {
-                    doc.ref.update({
-                        completed: checked
-                    })
-                    .then(() => {
-                        context.commit('checkAll', checked)
-
-                    })
-                })
+            axios.patch('/todosCheckAll', {
+                completed: checked,
             })
+                .then(response => {
+                    context.commit('checkAll', checked)
+                })
+                .catch(error => {
+                    console.log(error)
+                })
         },
         updateFilter(context, filter) {
+
             context.commit('updateFilter', filter)
+
         },
         clearCompleted(context) {
-            db.collection('todos').where('completed', '==', true).get().then(querySnapshot => {
-                querySnapshot.forEach(doc => {
-                    doc.ref.delete().then(() => {
-                        context.commit('clearCompleted')
-                    })
-                })
+            const completed = context.state.todos
+                .filter(todo => todo.completed)
+                .map(todo => todo.id)
+
+            axios.delete('/todosDeleteCompleted', {
+                data: {
+                    todos: completed
+                }
             })
+                .then(response => {
+                    context.commit('clearCompleted')
+                })
+                .catch(error => {
+                    console.log(error)
+                })
         }
     }
 })
