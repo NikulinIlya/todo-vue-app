@@ -3,7 +3,7 @@ import Vuex from 'vuex'
 import axios from 'axios'
 
 Vue.use(Vuex)
-axios.defaults.baseURL = 'http://todo-laravel.test/api'
+axios.defaults.baseURL = 'http://todo-laravel/api'
 
 export const store = new Vuex.Store({
     state: {
@@ -80,6 +80,19 @@ export const store = new Vuex.Store({
         },
     },
     actions: {
+        retrieveName(context) {
+            axios.defaults.headers.common['Authorization'] = 'Bearer ' + context.state.token
+
+            return new Promise((resolve, reject) => {
+                axios.get('/user')
+                    .then(response => {
+                        resolve(response)
+                    })
+                    .catch(error => {
+                        reject(error)
+                    })
+            })
+        },
         clearTodos(context) {
             context.commit('clearTodos')
         },

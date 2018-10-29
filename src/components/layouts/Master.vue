@@ -99,9 +99,19 @@
         color: white;
         border-radius: 3px;
         cursor: pointer;
+
         &:hover {
             background: darken(#60BD4F, 10%);
         }
+    }
+
+    .server-error {
+        margin-bottom: 12px;
+        font-size: 16px;
+        padding: 10px 16px;
+        color: #a94442;
+        background: #F3DEDE;
+        border-radius: 4px;
     }
 
 </style>

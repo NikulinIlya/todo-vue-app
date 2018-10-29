@@ -1,5 +1,8 @@
 <template>
     <div>
+        <div class="name-container">
+            Welcome, {{ name }}
+        </div>
         <input type="text" class="todo-input" placeholder="What needs to be done" v-model="newTodo" @keyup.enter="addTodo">
         <transition-group name="fade" enter-active-class="animated fadeInUp" leave-active-class="animated fadeOutDown">
             <todo-item v-for="todo in todosFiltered" :key="todo.id" :todo="todo" :checkAll="!anyRemaining">
@@ -42,10 +45,15 @@
             return {
                 newTodo: '',
                 idForTodo: 3,
+                name: 'Test'
             }
         },
         created() {
             this.$store.dispatch('retrieveTodos')
+            this.$store.dispatch('retrieveName')
+                .then(response => {
+                    this.name = response.data.name
+                })
         },
         computed: {
             anyRemaining() {
@@ -130,6 +138,11 @@
         padding-top: 14px;
         margin-bottom: 14px;
     }
+
+    .name-container {
+        margin-bottom: 16px;
+    }
+
     button {
         font-size: 14px;
         background-color: white;
